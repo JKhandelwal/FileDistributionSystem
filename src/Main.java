@@ -1,7 +1,10 @@
 public class Main {
 
     public static void main(String[] args) {
-        System.out.println("IT WORKS");
         // write your code here
+        Server s = new Server();
+        s.start();
+        ClientMultiCast c = new ClientMultiCast();
+        c.start();
     }
 }
