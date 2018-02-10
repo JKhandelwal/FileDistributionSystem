@@ -14,7 +14,7 @@ public class Server extends Thread{
     private void startMutiCast() {
         try{
             String stringIP = "Blep";
-            group = InetAddress.getByName("228.5.6.7");
+            group = InetAddress.getByName("228.0.0.4");
             s = new MulticastSocket(2345);
             s.joinGroup(group);
             serverIP = new DatagramPacket(stringIP.getBytes(), stringIP.length(), group, 2345);

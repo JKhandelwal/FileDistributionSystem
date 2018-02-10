@@ -3,7 +3,7 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 
-public class ClientMultiCast extends Thread {
+public class Client extends Thread {
     private static MulticastSocket s;
     private static InetAddress address;
 
@@ -13,7 +13,7 @@ public class ClientMultiCast extends Thread {
     public void run() {
         try {
             //Gets the IP address of the program.
-            address = InetAddress.getByName("228.5.6.7");
+            address = InetAddress.getByName("228.0.0.4");
             //Joins the MultiCast group.
             s = new MulticastSocket(2345);
             s.joinGroup(address);
