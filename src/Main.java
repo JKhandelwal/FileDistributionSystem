@@ -4,11 +4,11 @@ import java.nio.ByteBuffer;
 public class Main {
 
     public static void main(String[] args) {
-        messAround();
-//        Server s = new Server();
-//        s.start();
-//        Client c = new Client();
-//        c.start();
+//        messAround();
+        Server s = new Server();
+        s.start();
+        Client c = new Client();
+        c.start();
     }
 
     private static void messAround() {
