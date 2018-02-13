@@ -27,17 +27,17 @@ public class Server extends Thread {
 //            }
 
             try{
-                File file = new File("Files/pg44823.txt");
+                File file = new File(Config.filePath);
                 FileInputStream is = new FileInputStream(file);
 //                System.out.println("file size is " + file.length());
                 long totalNum = (long)Math.ceil((double)file.length() / (double)Config.sendSize);
                 byte[] chunk = new byte[Config.sendSize];
                 int chunkLen = 0;
-                int num = 0;
+                int currentNum = 1;
 
                 while ((chunkLen = is.read(chunk)) != -1) {
                         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-                        buffer.putLong(num);
+                        buffer.putLong(currentNum++);
                         byte[] a = buffer.array();
 
                         ByteBuffer buffer1 = ByteBuffer.allocate(Long.BYTES);
@@ -45,17 +45,19 @@ public class Server extends Thread {
                         byte[] b = buffer1.array();
 
                         byte[] send  = new byte[chunk.length + Long.BYTES*2];
-                        System.arraycopy(chunk, 0, send, 0, chunk.length);
-                        System.arraycopy(a, 0, send, chunk.length, Long.BYTES);
-                        System.arraycopy(b, 0, send, chunk.length + a.length, Long.BYTES);
+
+                        System.arraycopy(a, 0, send, 0, Long.BYTES);
+                        System.arraycopy(b, 0, send, a.length, Long.BYTES);
+                        System.arraycopy(chunk, 0, send, a.length + b.length, chunk.length);
+
+
+
                         packet = new DatagramPacket(send,send.length,group,Config.port);
                         s.send(packet);
-
+//                        Thread.sleep(1);
 //                        System.out.println("sent the packet length is " + send.length )
-                    num ++;
-                    System.out.println("num is " + num);
                 }
-                System.out.println("num is " + num);
+                System.out.println("num is " + currentNum);
 
                 is.close();
 

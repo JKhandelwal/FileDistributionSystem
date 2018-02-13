@@ -1,10 +1,15 @@
 import java.io.FileInputStream;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class Main {
 
     public static void main(String[] args) {
 //        messAround();
+        work();
+    }
+
+    private static void work() {
         Server s = new Server();
         s.start();
         Client c = new Client();
@@ -26,13 +31,13 @@ public class Main {
         System.out.println(Long.BYTES);
 
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.putLong(value);
+        buffer.putLong(12456);
         byte[] a = buffer.array();
-        ByteBuffer buffer1 = ByteBuffer.allocate(Long.BYTES);
 
-        buffer1.put(a);
-        buffer1.flip();
-        System.out.println(buffer1.getLong());
+        byte[] b = new byte[Long.BYTES *2];
+        System.arraycopy(a,0,b,0,Long.BYTES);
+
+        System.out.println(Arrays.toString(b));
 
     }
 }
