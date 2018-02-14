@@ -8,7 +8,7 @@ public class Main {
 //        messAround();
         work();
     }
-
+//
     private static void work() {
         Server s = new Server();
         s.start();
@@ -17,27 +17,43 @@ public class Main {
     }
 
     private static void messAround() {
-        long value = Long.MAX_VALUE;
-        System.out.println(value + " bytes");
-        value /= 1024;
-        System.out.println(value + " kilobytes");
-        value /= 1024;
-        System.out.println(value + " megabytes");
-        value /= 1024;
-        System.out.println(value + " gigabytes");
-        value /= 1024;
-        System.out.println(value + " terabytes");
+//        long value = Long.MAX_VALUE;
+//        System.out.println(value + " bytes");
+//        value /= 1024;
+//        System.out.println(value + " kilobytes");
+//        value /= 1024;
+//        System.out.println(value + " megabytes");
+//        value /= 1024;
+//        System.out.println(value + " gigabytes");
+//        value /= 1024;
+//        System.out.println(value + " terabytes");
+//
+//        System.out.println(Long.BYTES);
+//
+//        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+//        buffer.putLong(12456);
+//        byte[] a = buffer.array();
+//
+//        byte[] b = new byte[Long.BYTES *2];
+//        System.arraycopy(a,0,b,0,Long.BYTES);
+//
+//        System.out.println(Arrays.toString(b));
 
-        System.out.println(Long.BYTES);
+//        String s = "";
+//        for (int i =0; i < 255;i++){
+//            s += "a";
+//        }
+//        byte[] bytes = s.getBytes();
+//
+//        System.out.println("length is " + bytes.length);
+        boolean  t = true;
+        boolean vIn = false;
+        byte vOut = (byte)(vIn?1:0);
 
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.putLong(12456);
-        byte[] a = buffer.array();
+        System.out.println(vOut);
 
-        byte[] b = new byte[Long.BYTES *2];
-        System.arraycopy(a,0,b,0,Long.BYTES);
 
-        System.out.println(Arrays.toString(b));
+
 
     }
 }
