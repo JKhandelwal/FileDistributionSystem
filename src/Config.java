@@ -6,6 +6,8 @@ public class Config {
     public static final String outputFile = "/cs/scratch/jk218/testfile";
     public static final int initSize = 272;
     public static final int ackSize = 5;
+    public static final int controlPort = 8080;
+    public static final int NUMBER =3;
 
 //    file name = 256;
 //    file size = 8;

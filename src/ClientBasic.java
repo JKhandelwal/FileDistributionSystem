@@ -70,14 +70,15 @@ public class ClientBasic {
                     total =buffer2.getLong();
 //                    System.out.println("final number is " + total + "\n");
 
-                    if (curr == total) break;
 ////                        fos.write(recv.getData(), Long.BYTES * 2, last);
 //                        break;
 //                    } else {
 //
 //                    }
                     map.put(curr, recv.getData());
+                    if (curr == total) break;
                 }
+
                 for (int i = 1; i < total; i++) {
 //                    System.out.println(i);
                     if (map.get((long)i) != null){
