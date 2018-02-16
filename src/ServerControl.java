@@ -52,10 +52,12 @@ public class ServerControl extends Thread{
             latch = new CountDownLatch(1);
             latch.await();
             //receive the list from the client;
+            //if list is empty put int into the poll saying its empty
             //transmit the list to the main server
             latch = new CountDownLatch(1);
             latch.await();
             //send message to transmit
+
         }
 
         //send message to close;

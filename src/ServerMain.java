@@ -31,8 +31,24 @@ public class ServerMain {
             for (ServerControl s:servers) {
                 s.latchContinue();
             }
+
+
+            Thread.sleep(1000);
+
+            //For Each Section
+
+                //Transmit the files
+                //wait a couple of seconds
+                //count to 3 i guess
+                    // Poll the blocking queue
+                    //Open the latches to tell the person to transmit
+                    //Retransmit the files
+
+
+
+
             
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.out.println("Server could not start - Errors" + e.getMessage());
         }
     }
