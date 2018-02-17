@@ -7,7 +7,7 @@ public class Config {
     public static final int initSize = 272;
     public static final int ackSize = 5;
     public static final int controlPort = 8080;
-    public static final int NUMBER =3;
+    public static final int NUMBER =1;
 
 //    file name = 256;
 //    file size = 8;

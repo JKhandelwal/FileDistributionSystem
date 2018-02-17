@@ -1,10 +1,10 @@
 import java.io.*;
 import java.net.Socket;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.ArrayList;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 
-public class ServerControl extends Thread{
+public class ServerControl extends Thread {
 
     private Socket connectionSocket;
     private InputStream is;
@@ -13,12 +13,19 @@ public class ServerControl extends Thread{
     private String buffStr;
     private BufferedReader br;
     private File f;
-    private BufferedInputStream bis;
     private int packetSize;
+    private int lowNumPacket = 0;
+    private int highNumPacket = 2;
+    private CountDownLatch latch = new CountDownLatch(1);
+    private CountDownLatch exitLatch = new CountDownLatch(2);
 
-    public ServerControl(Socket connectionSocket,File file,int size) {
+
+    private BlockingQueue<ArrayList<Integer>> mainQueue;
+
+    public ServerControl(Socket connectionSocket, File file, int size, BlockingQueue<ArrayList<Integer>> startQueue) {
         this.connectionSocket = connectionSocket;
         this.f = file;
+        this.mainQueue = startQueue;
         this.packetSize = size;
         try {
             this.is = connectionSocket.getInputStream();
@@ -30,36 +37,69 @@ public class ServerControl extends Thread{
         }
     }
 
-    public void run() {
-        System.out.println("Server - new ConnectionHandler thread started .... ");
+    public void runOld() {
         try {
             //TODO connection shit
             sendFile();
         } catch (Exception e) {
-            System.out.println("Server - ConnectionHandler:run " + e.getMessage());
+
             cleanup();
         }
     }
 
-    private CountDownLatch latch = new CountDownLatch(1);
+    public void sendInit() throws Exception {
+        pw.println(f.getName());
+        pw.println(f.length());
+        pw.println(packetSize);
+    }
 
-    public void run_me(int numberOfSections) throws InterruptedException {
-//        sendInitToClient();
-//        waitForInitFromClient();
-        latch.await();
-        for (int i =0;i < numberOfSections;i++){
-            //send message to tell the client to be ready to receive
-            latch = new CountDownLatch(1);
-            latch.await();
-            //receive the list from the client;
-            //if list is empty put int into the poll saying its empty
-            //transmit the list to the main server
-            latch = new CountDownLatch(1);
-            latch.await();
-            //send message to transmit
 
+    public void run() {
+        System.out.println("Server - new ConnectionHandler thread started .... ");
+
+        try {
+
+            sendInit();
+
+            String line = br.readLine();
+            if (!line.equals("receivedStart")) {
+                System.out.println("protocol is broken, aborting");
+                return;
+            }
+
+            while (exitLatch.getCount() == 2) {
+                // 1
+                latch.await();
+                pw.println("sending," + lowNumPacket + "," + highNumPacket);
+                latch = new CountDownLatch(1);
+
+                // 2
+                latch.await();
+
+                pw.println("retransmit");
+                line = br.readLine();
+                ArrayList<Integer> list = new ArrayList<>();
+                if (Integer.parseInt(line) != 0) {
+                    for (int i = 0; i < Integer.parseInt(line); i++) {
+                        line = br.readLine();
+                        list.add(Integer.parseInt(line));
+                    }
+                } else {
+                    assert list.size() == 0;
+                }
+                mainQueue.add(list);
+                latch = new CountDownLatch(1);
+            }
+
+            pw.println("exit");
+            cleanup();
+            return;
+
+        } catch (Exception e) {
+            System.out.println("Server - ConnectionHandler:run " + e.getMessage());
+            pw.print("exit");
+            cleanup();
         }
-
         //send message to close;
     }
 
@@ -67,15 +107,45 @@ public class ServerControl extends Thread{
         try {
 
 
-                pw.println(f.getName());
-                pw.println(f.length());
-                pw.println(packetSize);
-                //Gets the name of the file the client wishes to get.
+            //use the secondary latch to know when to quit
+//        sendInitToClient();
+//        waitForInitFromClient();
 
-                buffStr = br.readLine();
-                //ack Server
-                if (buffStr.equals("receivedStart")) {
-                while (true){
+
+            latch.await();
+            //send message to tell the client to be ready to receive
+            latch = new CountDownLatch(1);
+            latch.await();
+
+
+            //receive the list from the client;
+            //if list is empty put int into the poll saying its empty
+            //Insert list into blocking dequeue
+
+            //transmit the list to the main server
+            ArrayList<Integer> list = new ArrayList<>();
+            String s;
+            s = br.readLine();
+            int number = Integer.parseInt(s);
+            int count = 0;
+            while (count < number) {
+                s = br.readLine();
+                list.add(Integer.parseInt(s));
+            }
+
+            mainQueue.add(list);
+            latch = new CountDownLatch(1);
+            //Wait on the main thread to tell the server to change the
+            latch.await();
+            //send message to transmit
+
+
+            //Gets the name of the file the client wishes to get.
+
+            buffStr = br.readLine();
+            //ack Server
+            if (buffStr.equals("receivedStart")) {
+                while (true) {
                     try {
 
 //                    byte [] byteArray  = new byte [(int)(fileDir).length()];
@@ -100,7 +170,7 @@ public class ServerControl extends Thread{
 
             }
             cleanup();
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.out.println("Server - Errors: " + e.getMessage());
             cleanup();
         }
@@ -113,7 +183,6 @@ public class ServerControl extends Thread{
     private void cleanup() {
         System.out.println("Server - Connection Closed to..." + connectionSocket.getInetAddress());
         try {
-            if (bis != null) bis.close();
             if (br != null) br.close();
             if (os != null) os.close();
             if (is != null) is.close();
@@ -125,7 +194,14 @@ public class ServerControl extends Thread{
     }
 
 
-    public void latchContinue() {
+    public void latchContinue(int lowerBound, int upperBound) {
+        this.lowNumPacket = lowerBound;
+        this.highNumPacket = upperBound;
         latch.countDown();
+    }
+
+
+    public void setExitLatch() {
+        exitLatch.countDown();
     }
 }
