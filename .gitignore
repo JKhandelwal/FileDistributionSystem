@@ -1,3 +1,4 @@
 *.xml 
 *.ds_store
 *out/
+*.iml
