@@ -2,3 +2,5 @@
 *.ds_store
 *out/
 *.iml
+*.class
+
