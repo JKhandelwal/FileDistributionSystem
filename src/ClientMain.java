@@ -5,6 +5,7 @@ import java.net.MulticastSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -41,7 +42,7 @@ public class ClientMain {
 
             String line = br.readLine();
             f = new File("/cs/scratch/jk218/" + line);
-
+            FileOutputStream fos = new FileOutputStream(f);
             line = br.readLine();
             length = Long.parseLong(line);
 
@@ -53,12 +54,16 @@ public class ClientMain {
             numPackets = (int) (length / packetSize);
 
 
-            ClientReceive c = new ClientReceive();
 
             pw.println("receivedStart");
             int currLow = -1;
             int currHigh = 0;
             List<Integer> range = new ArrayList<>();
+            ConcurrentHashMap<Integer,byte[]> map = new ConcurrentHashMap<>();
+            ClientReceive c = new ClientReceive(packetSize,s,map);
+
+            boolean sectionComplete = false;
+            //TODO figure out where/how to write the file sections.
             while (true) {
 
 
@@ -67,16 +72,48 @@ public class ClientMain {
                 if (split[0].equals("sending")) {
 
                     if (currLow != Integer.parseInt(split[1])){
+                        sectionComplete = false;
+                        map.clear();
                         range.clear();
-                       range = IntStream.rangeClosed(Integer.parseInt(split[1]), Integer.parseInt(split[1]))
+                       range = IntStream.rangeClosed(Integer.parseInt(split[1]), Integer.parseInt(split[2]))
                                 .boxed().collect(Collectors.toList());
-                    } else{
+                       currLow = Integer.parseInt(split[1]);
+                       currHigh = Integer.parseInt(split[2]);
+                    }
 
+                    if (!sectionComplete) {
+                        c.countdown((ArrayList<Integer>) range);
+                        c.resetLatch();
+                    }
+
+                    line = br.readLine();
+
+                    if (line.equals("retransmit")){
+                        range = c.getTotals();
+                        pw.println(range.size());
+                        if (range.size() == 0){
+                            sectionComplete = true;
+                            //todo here maybe?
+                        } else {
+                            range.forEach(a -> pw.println(a));
+                        }
+                    } else {
+                        System.out.println("Broken Protocol exiting");
                     }
 
 
+
                 } else {
+
+                    if (split[0].equals("exit")){
+                        c.end();
+                        //doexit things
+                        break;
+                    } else {
+
+
                     System.out.println("Protocol broken exiting");
+                    }
 //                cleanup();
                 }
 

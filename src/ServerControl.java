@@ -91,7 +91,7 @@ public class ServerControl extends Thread {
                 latch = new CountDownLatch(1);
             }
 
-            pw.println("exit");
+            pw.println("exit,0,0");
             cleanup();
             return;
 

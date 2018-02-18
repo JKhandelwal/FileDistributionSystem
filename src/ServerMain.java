@@ -33,7 +33,7 @@ public class ServerMain {
             serverSocket = new ServerSocket(Config.controlPort);
             System.out.println("Server - Your control server has started on port " + Config.controlPort);
             int count =0;
-            //Calculate Number of Sections
+            //Calculate Number of Sections todo
             int numberSections = 7;
             while (count < Config.NUMBER) { // count to 3
                 //Accepts the connection and starts a connection handler thread to manage that client.
@@ -52,6 +52,7 @@ public class ServerMain {
                 high += NumberOfPacketsPerSection;
                 //set low and high
                 //TODO Sectioning
+                //TODO figure where to read the file
 
                 /*read the requisite number of files
                 put them in a hashmap
