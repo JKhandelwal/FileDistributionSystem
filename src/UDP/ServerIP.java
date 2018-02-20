@@ -1,3 +1,5 @@
+package UDP;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.MulticastSocket;
@@ -9,7 +11,7 @@ public class ServerIP extends Thread{
     private MulticastSocket m;
     private DatagramPacket p;
 
-    public ServerIP(MulticastSocket s, DatagramPacket p){
+    public ServerIP(MulticastSocket s,DatagramPacket p){
          this.c = new CountDownLatch(1);
          this.m = s;
          this.p = p;

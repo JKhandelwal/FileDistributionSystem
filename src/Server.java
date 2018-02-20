@@ -1,133 +1,175 @@
+
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
+import java.io.RandomAccessFile;
+import java.net.*;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
-public class Server extends Thread {
-    private DatagramPacket packet;
+public class Server {
+
+    private static DatagramPacket packet;
     private static MulticastSocket s;
     private static InetAddress group;
+    private static ServerSocket serverSocket;
 
-    public void run() {
-        startMutiCast();
-    }
-
-    private void startMutiCast() {
+    public static void main(String[] args) {
         try {
-
+            String stringIP = InetAddress.getLocalHost().getHostAddress();
+            //IP 228.5.6.7 and port 2345 was chosen for the MultiCast group.
             group = InetAddress.getByName(Config.ip);
             s = new MulticastSocket(Config.port);
             s.joinGroup(group);
-            GetAck g = new GetAck(s);
-            g.start();
-//
-//            while (true) {
+            //Constructs the Datagram packet
+            packet = new DatagramPacket(stringIP.getBytes(), stringIP.length(), group, Config.port);
+            ServerIP ip = new ServerIP(s, packet);
+            ip.start();
+
+            BlockingQueue<ArrayList<Integer>> queue = new LinkedBlockingDeque<>(Config.NUMBER);
+            List<ServerControl> servers = new LinkedList<>();
+
+            serverSocket = new ServerSocket(Config.controlPort);
+            System.out.println("Server - Your control server has started on port " + Config.controlPort);
+            int count = 0;
+
+            File f = new File(Config.filePath);
+
+            while (count < Config.NUMBER) { // count to 3
+                //Accepts the connection and starts a connection handler thread to manage that client.
+                Socket connectionSocket = serverSocket.accept();
+                ServerControl s = new ServerControl(connectionSocket, new File(Config.filePath), Config.sendSize, queue);
+                s.start();
+                servers.add(s);
+                count++;
+                System.out.println("Server - Accepted the connection to " + connectionSocket.getInetAddress());
+            }
+
+            ip.end();
+
+            Thread.sleep(500);
+            servers.forEach(ServerControl::send);
             Thread.sleep(1000);
-//                s.send(serverIP);
-//                System.out.println("server sent it");
-//            }
-
-            if (sendInit()) {
 
 
+            FileInputStream is = new FileInputStream(f);
+            byte[] send = new byte[Config.sendSize + Integer.BYTES];
+            int chunkLen = 0;
+            int currentNum = 1;
+            while ((chunkLen = is.read(send, Integer.BYTES, Config.sendSize)) != -1) {
+//                System.out.println("current Num " + currentNum);
+                ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+                buffer.putInt(currentNum++);
+                byte[] a = buffer.array();
+                System.arraycopy(a, 0, send, 0, Integer.BYTES);
+                packet = new DatagramPacket(send, send.length, group, Config.port);
+                s.send(packet);
+                System.out.println("server Chunk Length is " + chunkLen);
+                Thread.sleep(1);
+            }
+            System.out.println("server final packet count is" + currentNum);
+            System.out.println("file size is " + f.length());
+            System.out.println("server - finished sending the file");
+
+
+            servers.forEach(a -> {
+                a.sendReTransmitMessage();
                 try {
-                    File file = new File(Config.filePath);
-                    FileInputStream is = new FileInputStream(file);
-//                System.out.println("file size is " + file.length());
-                    long totalNum = (long) Math.ceil((double) file.length() / (double) Config.sendSize);
-                    byte[] chunk = new byte[Config.sendSize];
-                    int chunkLen = 0;
-                    int currentNum = 1;
-
-                    while ((chunkLen = is.read(chunk)) != -1) {
-                        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-                        buffer.putLong(currentNum++);
-                        byte[] a = buffer.array();
-
-                        ByteBuffer buffer1 = ByteBuffer.allocate(Long.BYTES);
-                        buffer1.putLong(totalNum);
-                        byte[] b = buffer1.array();
-
-                        byte[] send = new byte[chunk.length + Long.BYTES * 2];
-
-                        System.arraycopy(a, 0, send, 0, Long.BYTES);
-                        System.arraycopy(b, 0, send, a.length, Long.BYTES);
-                        System.arraycopy(chunk, 0, send, a.length + b.length, chunk.length);
-
-
-                        packet = new DatagramPacket(send, send.length, group, Config.port);
-                        s.send(packet);
-//                        Thread.sleep(1);
-//                        System.out.println("sent the packet length is " + send.length )
-                    }
-                    System.out.println("num is " + currentNum);
-
-                    is.close();
-
-                } catch (Exception e) {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                a.latchContinue();
+            });
+
+            System.out.println("Server - sent the re-transmit message");
+
+            RandomAccessFile raf = new RandomAccessFile(f,"r");
+
+
+            final int[] activeThreadCount = {Config.NUMBER};
+            HashSet<Integer> sendSet = new HashSet<>();
+            ByteBuffer buffer2 = ByteBuffer.allocate(Integer.BYTES);
+            while (true) {
+                System.out.println("In the Loop");
+
+                if (activeThreadCount[0] == 0) break;
+
+                System.out.println("Server - Waiting for the thing");
+                while (true) {
+                    Thread.sleep(50);
+                    System.out.println(queue.size());
+                    if (queue.size() == activeThreadCount[0]) break;
+                }
+                System.out.println("Server - After the thing");
+
+                sendSet.clear();
+                queue.forEach(a -> {
+                    if (a.size() == 0) {
+                        activeThreadCount[0]--;
+                    } else {
+                        System.out.println(a.size());
+                        sendSet.addAll(a);
+                    }
+                });
+                queue.clear();
+                System.out.println("Server - Adds the thing to set");
+
+                if (sendSet.size() == 0) {
+                    System.out.println("Server - sendsize is FING 0");
+                    break;
+                }
+
+                servers.forEach(ServerControl::send);
+                System.out.println("Server - after sending");
+                Thread.sleep(1000);
+
+                sendSet.forEach(a -> {
+                    try {
+                        System.out.println("sending this " + a);
+                        raf.seek((a-1) * Config.sendSize);
+                        raf.read(send,Integer.BYTES,Config.sendSize);
+                        buffer2.putInt(a);
+                        byte[] b = buffer2.array();
+                        buffer2.position(0);
+                        System.arraycopy(b, 0, send, 0, Integer.BYTES);
+                        packet = new DatagramPacket(send, send.length, group, Config.port);
+                        s.send(packet);
+//                        Thread.sleep(5);
+//                            System.out.println("Server - sent" + a);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        System.exit(1);
+                    }
+                });
+                System.out.println("Server - Before Transmit");
+                servers.forEach(a -> {
+                    a.sendReTransmitMessage();
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    a.latchContinue();
+                });
+                System.out.println("Server - After Transmit");
+
+
             }
-            } catch(Exception e){
-                e.printStackTrace();
-                System.out.println("It broke the system");
-            }
-//system
-//
-//        while(readFile != Null){
-//            continue sending;
-//        }
 
-    }
-
-    private boolean sendInit() throws IOException, InterruptedException {
-        int packetSize = 1024*2*2*2;
-//        System.out.println(packetSize);
-        long fileSize = 128812;
-        String str = "maybe this works?";
-
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.putLong(fileSize);
-        byte[] a = buffer.array();
-
-        ByteBuffer buffer1 = ByteBuffer.allocate(Integer.BYTES);
-        buffer1.putInt(packetSize);
-        byte[] b = buffer1.array();
-
-        ByteBuffer buffer2 = ByteBuffer.allocate(Integer.BYTES);
-        buffer2.putInt(340);
-        byte[] d = buffer2.array();
-
-        byte[] c = str.getBytes();
-
-        byte[] send = new byte[Config.initSize];
-        send[0] =1;
-        System.arraycopy(d, 0, send, 1, Integer.BYTES);
-
-        System.arraycopy(a, 0, send, Integer.BYTES +1, Long.BYTES);
-//        System.out.println(Arrays.toString(send));
-        System.arraycopy(b, 0, send, a.length + Integer.BYTES +1, Integer.BYTES);
-//        System.out.println(Arrays.toString(send));
-        System.arraycopy(c, 0, send, a.length + b.length + Integer.BYTES +1, c.length);
-//        System.out.println(Arrays.toString(send));
-        packet = new DatagramPacket(send, send.length, group, Config.port);
+            System.out.println("Omg it finished");
 
 
-        s.send(packet);
-        System.out.println("packet sent");
+            is.close();
+            raf.close();
+            s.leaveGroup(group);
 
-        int counter = 0;
-        while (counter < 5) {
-            if (GetAck.messages() != null){
-                return false;
-            }
-            Thread.sleep(1000);
-            counter++;
+            return;
+
+        } catch (Exception e) {
+            System.out.println("Server could not start - Errors" + e.getMessage());
         }
-        return false;
     }
+
 }

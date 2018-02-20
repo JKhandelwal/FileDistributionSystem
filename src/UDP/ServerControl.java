@@ -1,3 +1,5 @@
+package UDP;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -10,11 +12,14 @@ public class ServerControl extends Thread {
     private InputStream is;
     private OutputStream os;
     private PrintWriter pw;
+    private String buffStr;
     private BufferedReader br;
     private File f;
     private int packetSize;
+    private int lowNumPacket = 0;
+    private int highNumPacket = 2;
     private CountDownLatch latch = new CountDownLatch(1);
-//    private CountDownLatch exitLatch = new CountDownLatch(2);
+    private CountDownLatch exitLatch = new CountDownLatch(2);
 
 
     public BlockingQueue<ArrayList<Integer>> mainQueue;
@@ -31,6 +36,16 @@ public class ServerControl extends Thread {
             pw = new PrintWriter(new OutputStreamWriter(connectionSocket.getOutputStream()), true);
         } catch (IOException e) {
             System.out.println("Server - Errors Occurred:" + e.getMessage());
+        }
+    }
+
+    public void runOld() {
+        try {
+            //TODO connection shit
+//            sendFile();
+        } catch (Exception e) {
+
+            cleanup();
         }
     }
 
@@ -58,9 +73,20 @@ public class ServerControl extends Thread {
                 return;
             }
 
-            while (true) {
-
+            while (exitLatch.getCount() == 2) {
+                // 1
                 latch.await();
+                System.out.println("Low " + lowNumPacket + " high " + highNumPacket);
+                pw.println("sending," + lowNumPacket + "," + highNumPacket);
+                pw.flush();
+                latch = new CountDownLatch(1);
+
+                // 2
+                latch.await();
+
+                pw.println("retransmit");
+                pw.flush();
+
                 line = br.readLine();
                 System.out.println("Read the number " + line);
                 ArrayList<Integer> list = new ArrayList<>();
@@ -70,18 +96,20 @@ public class ServerControl extends Thread {
                         line = br.readLine();
                         list.add(Integer.parseInt(line));
                     }
-                    mainQueue.add(list);
-                    System.out.println(list.toString());
                 } else {
                     assert list.size() == 0;
-                    mainQueue.add(list);
-                    System.out.println("Exit Received");
-                    cleanup();
-                    return;
                 }
                 System.out.println("List size is " + list.size());
+                mainQueue.add(list);
                 latch = new CountDownLatch(1);
             }
+
+            pw.println("exit,0,0");
+            pw.flush();
+
+            cleanup();
+            return;
+
         } catch (Exception e) {
             System.out.println("Server - ConnectionHandler:run " + e.getMessage());
             pw.print("exit");
@@ -107,21 +135,14 @@ public class ServerControl extends Thread {
     }
 
 
-    public void latchContinue() {
+    public void latchContinue(int lowerBound, int upperBound) {
+        this.lowNumPacket = lowerBound;
+        this.highNumPacket = upperBound;
         latch.countDown();
     }
 
-    public void send(){
-        pw.println("sending");
-        pw.flush();
-    }
 
-    public void sendReTransmitMessage(){
-        pw.println("retransmit");
-        pw.flush();
+    public void setExitLatch() {
+        exitLatch.countDown();
     }
-
-//    public void setExitLatch() {
-//        exitLatch.countDown();
-//    }
 }
