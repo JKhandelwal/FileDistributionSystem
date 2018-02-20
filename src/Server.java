@@ -65,7 +65,6 @@ public class Server {
                 System.arraycopy(a, 0, send, 0, Integer.BYTES);
                 packet = new DatagramPacket(send, send.length, group, Config.port);
                 s.send(packet);
-                System.out.println("server Chunk Length is " + chunkLen);
                 Thread.sleep(1);
             }
             System.out.println("server final packet count is" + currentNum);
