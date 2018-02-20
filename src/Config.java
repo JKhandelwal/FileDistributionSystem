@@ -8,5 +8,5 @@ public class Config {
     public static final String file3 = "/cs/home/jk218/Documents/3/3102/Practical1/Files/TheFastandtheFuriousJohnIreland1954goofyrip_512kb.mp4";
     public static final String filePath = file3;
     public static final int controlPort = 10100;
-    public static final int NUMBER =1;
+    public static final int NUMBER =3;
 }
