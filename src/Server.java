@@ -1,9 +1,12 @@
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.*;
 import java.nio.ByteBuffer;
+
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -14,9 +17,12 @@ public class Server {
     private static MulticastSocket s;
     private static InetAddress group;
     private static ServerSocket serverSocket;
+    private static BlockingQueue<ArrayList<Integer>> queue = new LinkedBlockingDeque<>(Config.NUMBER);
+    private static List<ServerControl> servers = new LinkedList<>();
 
     public static void main(String[] args) {
         try {
+            long StartTime = System.currentTimeMillis();
             String stringIP = InetAddress.getLocalHost().getHostAddress();
             //IP 228.5.6.7 and port 2345 was chosen for the MultiCast group.
             group = InetAddress.getByName(Config.ip);
@@ -27,19 +33,20 @@ public class Server {
             ServerIP ip = new ServerIP(s, packet);
             ip.start();
 
-            BlockingQueue<ArrayList<Integer>> queue = new LinkedBlockingDeque<>(Config.NUMBER);
-            List<ServerControl> servers = new LinkedList<>();
 
             serverSocket = new ServerSocket(Config.controlPort);
             System.out.println("Server - Your control server has started on port " + Config.controlPort);
             int count = 0;
 
             File f = new File(Config.filePath);
+            MessageDigest m =  MessageDigest.getInstance("SHA1");
+            String checksum = getFileChecksum(m, f);
+            System.out.println("server checksum is " + checksum);
 
             while (count < Config.NUMBER) { // count to 3
                 //Accepts the connection and starts a connection handler thread to manage that client.
                 Socket connectionSocket = serverSocket.accept();
-                ServerControl s = new ServerControl(connectionSocket, new File(Config.filePath), Config.sendSize, queue);
+                ServerControl s = new ServerControl(checksum,connectionSocket, new File(Config.filePath), Config.sendSize, queue);
                 s.start();
                 servers.add(s);
                 count++;
@@ -67,8 +74,7 @@ public class Server {
                 s.send(packet);
                 Thread.sleep(1);
             }
-            System.out.println("server final packet count is" + currentNum);
-            System.out.println("file size is " + f.length());
+
             System.out.println("server - finished sending the file");
 
 
@@ -91,17 +97,17 @@ public class Server {
             HashSet<Integer> sendSet = new HashSet<>();
             ByteBuffer buffer2 = ByteBuffer.allocate(Integer.BYTES);
             while (true) {
-                System.out.println("In the Loop");
+//                System.out.println("In the Loop");
 
                 if (activeThreadCount[0] == 0) break;
 
-                System.out.println("Server - Waiting for the thing");
+//                System.out.println("Server - Waiting for the thing");
                 while (true) {
                     Thread.sleep(50);
-                    System.out.println(queue.size());
+//                    System.out.println(queue.size());
                     if (queue.size() == activeThreadCount[0]) break;
                 }
-                System.out.println("Server - After the thing");
+//                System.out.println("Server - After the thing");
 
                 sendSet.clear();
                 queue.forEach(a -> {
@@ -113,20 +119,20 @@ public class Server {
                     }
                 });
                 queue.clear();
-                System.out.println("Server - Adds the thing to set");
+//                System.out.println("Server - Adds the thing to set");
 
                 if (sendSet.size() == 0) {
-                    System.out.println("Server - sendsize is FING 0");
+//                    System.out.println("Server - sendsize is FING 0");
                     break;
                 }
 
                 servers.forEach(ServerControl::send);
-                System.out.println("Server - after sending");
+//                System.out.println("Server - after sending");
                 Thread.sleep(1000);
 
                 sendSet.forEach(a -> {
                     try {
-                        System.out.println("sending this " + a);
+                        System.out.println("Server re-sending packet " + a);
                         raf.seek((a-1) * Config.sendSize);
                         raf.read(send,Integer.BYTES,Config.sendSize);
                         buffer2.putInt(a);
@@ -142,7 +148,7 @@ public class Server {
                         System.exit(1);
                     }
                 });
-                System.out.println("Server - Before Transmit");
+//                System.out.println("Server - Before Transmit");
                 servers.forEach(a -> {
                     a.sendReTransmitMessage();
                     try {
@@ -152,13 +158,15 @@ public class Server {
                     }
                     a.latchContinue();
                 });
-                System.out.println("Server - After Transmit");
+//                System.out.println("Server - After Transmit");
 
 
             }
 
-            System.out.println("Omg it finished");
+            System.out.println("Server - Transmission complete");
+            long endTime = System.currentTimeMillis();
 
+            System.out.println("Time is " + (endTime - StartTime));
 
             is.close();
             raf.close();
@@ -169,6 +177,37 @@ public class Server {
         } catch (Exception e) {
             System.out.println("Server could not start - Errors" + e.getMessage());
         }
+    }
+
+    private static String getFileChecksum(MessageDigest digest, File file) throws IOException {
+        //Get file input stream for reading the file content
+        FileInputStream fis = new FileInputStream(file);
+
+        //Create byte array to read data in chunks
+        byte[] byteArray = new byte[1024];
+        int bytesCount = 0;
+
+        //Read file data and update in message digest
+        while ((bytesCount = fis.read(byteArray)) != -1) {
+            digest.update(byteArray, 0, bytesCount);
+        };
+
+        //close the stream; We don't need it now.
+        fis.close();
+
+        //Get the hash's bytes
+        byte[] bytes = digest.digest();
+
+        //This bytes[] has bytes in decimal format;
+        //Convert it to hexadecimal format
+        StringBuilder sb = new StringBuilder();
+        for(int i=0; i< bytes.length ;i++)
+        {
+            sb.append(Integer.toString((bytes[i] & 0xff) + 0x100, 16).substring(1));
+        }
+
+        //return complete hash
+        return sb.toString();
     }
 
 }

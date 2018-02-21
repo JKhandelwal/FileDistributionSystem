@@ -14,14 +14,16 @@ public class ServerControl extends Thread {
     private File f;
     private int packetSize;
     private CountDownLatch latch = new CountDownLatch(1);
+    private String sum;
 //    private CountDownLatch exitLatch = new CountDownLatch(2);
 
 
     public BlockingQueue<ArrayList<Integer>> mainQueue;
 
-    public ServerControl(Socket connectionSocket, File file, int size, BlockingQueue<ArrayList<Integer>> startQueue) {
+    public ServerControl(String checksum,Socket connectionSocket, File file, int size, BlockingQueue<ArrayList<Integer>> startQueue) {
         this.connectionSocket = connectionSocket;
         this.f = file;
+        this.sum = checksum;
         this.mainQueue = startQueue;
         this.packetSize = size;
         try {
@@ -39,9 +41,11 @@ public class ServerControl extends Thread {
         pw.flush();
         pw.println(f.length());
         pw.flush();
+        pw.println(sum);
+        pw.flush();
         pw.println(packetSize);
         pw.flush();
-        System.out.println("Server - IT SENT THE INIT");
+        System.out.println("Server Control - Init Sent");
     }
 
 
@@ -54,7 +58,7 @@ public class ServerControl extends Thread {
 
             String line = br.readLine();
             if (!line.equals("receivedStart")) {
-                System.out.println("protocol is broken, aborting");
+                System.out.println("Server control - protocol is broken, aborting");
                 return;
             }
 
@@ -62,7 +66,7 @@ public class ServerControl extends Thread {
 
                 latch.await();
                 line = br.readLine();
-                System.out.println("Read the number " + line);
+                System.out.println("Server Control - Re requesting " + line);
                 ArrayList<Integer> list = new ArrayList<>();
                 int num = Integer.parseInt(line);
                 if (num != 0) {
@@ -75,17 +79,21 @@ public class ServerControl extends Thread {
                 } else {
                     assert list.size() == 0;
                     mainQueue.add(list);
-                    System.out.println("Exit Received");
+                    System.out.println("Server Control - Exit Received");
                     cleanup();
                     return;
                 }
-                System.out.println("List size is " + list.size());
+//                System.out.println("List size is " + list.size());
                 latch = new CountDownLatch(1);
             }
         } catch (Exception e) {
-            System.out.println("Server - ConnectionHandler:run " + e.getMessage());
+            System.out.println("Server - ConnectionHandler: Thread Connection Lost " + e.getMessage());
             pw.print("exit");
+            ArrayList<Integer> list = new ArrayList<>();
+            assert list.size() == 0;
+            mainQueue.add(list);
             cleanup();
+            return;
         }
         //send message to close;
     }
